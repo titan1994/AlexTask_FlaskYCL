@@ -4,5 +4,4 @@ pip-log.txt
 pyvenv.cfg
 __pycache__/
 
-/clickhouse/
 /nifi/logs

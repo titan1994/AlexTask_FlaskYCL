@@ -1,0 +1,60 @@
+# Действие превое - в командной строке набрать pipenv lock -r > requirements.txt
+version: '3'
+
+# Подводные камни винды... Предварительно создать: docker volume create postgres_database
+volumes:
+    postgres_database:
+        external: true
+
+# Общая сеть между микросервисами
+
+networks:
+  webappnetwork:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.16.238.0/24
+          gateway: 172.16.238.1
+# Сервисы
+services:
+
+  # Кликхаус (официальная сборка)
+  clickhouse:
+    image: yandex/clickhouse-server
+    container_name: clickhouse
+    ports:
+      - 8123:8123
+      - 9000:9000
+    volumes:
+      - ./clickhouse/cl_db:/var/lib/clickhouse
+    environment:
+      POSTGRES_PASSWORD: admin
+      POSTGRES_USER: admin
+      POSTGRES_DB: nifi_db
+      PGDATA: /var/lib/postgresql/data/pgdata
+
+    networks:
+      webappnetwork:
+        ipv4_address: 172.16.238.11
+
+    restart: always
+
+  # Ядро на фласке. Перед стартом сборки обязательно обновить pipenv lock -r > requirements.txt
+  flask_core:
+    build: ./
+    container_name: flask_core
+    ports:
+      - 5000:5000
+
+    volumes:
+     - ./app_flask:/flask_core/app_flask/
+
+    depends_on:
+     - clickhouse
+
+    networks:
+      webappnetwork:
+        ipv4_address: 172.16.238.13
+
+    restart: on-failure
